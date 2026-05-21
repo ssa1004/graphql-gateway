@@ -106,12 +106,9 @@ class GatewayQueryServiceTest {
 
         override suspend fun markRead(id: String): Notification? = null
     }
-
-    // SAM 변환을 쓰기 위한 단일 메서드 port 용 fun interface 어댑터는 불필요 —
-    // OrderPort 등은 단일 추상 메서드라 SAM 람다가 바로 된다.
 }
 
-// 단일 메서드 port 는 SAM 변환으로 람다를 쓴다 (테스트 가독성).
+// 단일 메서드 port 의 람다 팩토리 — 테스트에서 가짜 구현을 한 줄로 만들기 위함.
 private fun OrderPort(block: suspend (String) -> Order?) = object : OrderPort {
     override suspend fun findById(id: String) = block(id)
 }

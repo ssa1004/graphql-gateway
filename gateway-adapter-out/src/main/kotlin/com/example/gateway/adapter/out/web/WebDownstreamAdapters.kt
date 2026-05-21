@@ -46,8 +46,6 @@ import org.springframework.web.util.UriComponentsBuilder
  * GraphQL 쿼리 레벨의 N+1 은 사라지고 게이트웨이->downstream 호출만 병렬 N개가 된다.
  */
 
-private const val BULK_CONCURRENCY_NOTE = "DataLoader 가 키를 모아 호출 — fan-out 은 게이트웨이 내부 병렬"
-
 @Component
 @ConditionalOnProperty(prefix = "gateway.downstream", name = ["stub"], havingValue = "false", matchIfMissing = true)
 class WebUserAdapter(
@@ -58,13 +56,8 @@ class WebUserAdapter(
     override suspend fun findById(id: String): User? =
         client.get("auth", webClient, "/api/v1/users/$id", UserDto::class.java)?.toDomain()
 
-    override suspend fun findByIds(ids: Set<String>): Map<String, User> = coroutineScope {
-        // BULK_CONCURRENCY_NOTE 참고 — 단건 호출 병렬 fan-out.
-        ids.map { id -> async { id to findById(id) } }
-            .awaitAll()
-            .mapNotNull { (id, user) -> user?.let { id to it } }
-            .toMap()
-    }
+    override suspend fun findByIds(ids: Set<String>): Map<String, User> =
+        parallelByKeys(ids) { findById(it) }
 }
 
 @Component
@@ -99,12 +92,8 @@ class WebInvoiceAdapter(
     override suspend fun findById(id: String): Invoice? =
         client.get("billing", webClient, "/api/v1/invoices/$id", InvoiceDto::class.java)?.toDomain()
 
-    override suspend fun findByIds(ids: Set<String>): Map<String, Invoice> = coroutineScope {
-        ids.map { id -> async { id to findById(id) } }
-            .awaitAll()
-            .mapNotNull { (id, invoice) -> invoice?.let { id to it } }
-            .toMap()
-    }
+    override suspend fun findByIds(ids: Set<String>): Map<String, Invoice> =
+        parallelByKeys(ids) { findById(it) }
 }
 
 @Component
@@ -126,17 +115,14 @@ class WebNotificationAdapter(
 ) : NotificationPort {
 
     override suspend fun findByUserIds(userIds: Set<String>, limitPerUser: Int): Map<String, List<Notification>> =
-        coroutineScope {
-            userIds.map { userId ->
-                async {
-                    val uri = UriComponentsBuilder.fromPath("/api/v1/notifications")
-                        .queryParam("userId", userId)
-                        .queryParam("limit", limitPerUser)
-                        .build().toUriString()
-                    val page = client.get("notification", webClient, uri, NotificationPageDto::class.java)
-                    userId to (page?.items?.map { it.toDomain() } ?: emptyList())
-                }
-            }.awaitAll().toMap()
+        parallelByKeys(userIds) { userId ->
+            val uri = UriComponentsBuilder.fromPath("/api/v1/notifications")
+                .queryParam("userId", userId)
+                .queryParam("limit", limitPerUser)
+                .build().toUriString()
+            val page = client.get("notification", webClient, uri, NotificationPageDto::class.java)
+            // 항상 비-null 리스트를 반환 — 알림이 없는 사용자도 키가 빈 목록으로 유지된다.
+            page?.items?.map { it.toDomain() } ?: emptyList()
         }
 
     override suspend fun markRead(id: String): Notification? =
@@ -151,16 +137,10 @@ class WebFeedAdapter(
     private val client: ResilientDownstreamClient,
 ) : FeedPort {
 
-    override suspend fun findBySkuIds(skuIds: Set<String>): Map<String, Feed> = coroutineScope {
-        skuIds.map { skuId ->
-            async {
-                val feed = client.get("feed", webClient, "/api/v1/feeds/by-sku/$skuId", FeedDto::class.java)
-                skuId to feed?.toDomain()
-            }
-        }.awaitAll()
-            .mapNotNull { (skuId, feed) -> feed?.let { skuId to it } }
-            .toMap()
-    }
+    override suspend fun findBySkuIds(skuIds: Set<String>): Map<String, Feed> =
+        parallelByKeys(skuIds) { skuId ->
+            client.get("feed", webClient, "/api/v1/feeds/by-sku/$skuId", FeedDto::class.java)?.toDomain()
+        }
 }
 
 @Component
@@ -178,7 +158,7 @@ class WebSearchAdapter(
             .build().toUriString()
         val page = client.get("search", webClient, uri, SearchHitPageDto::class.java)
         val hits = page?.items?.map { it.toDomain() } ?: emptyList()
-        return toConnection(hits, offset, limit, page?.total ?: hits.size)
+        return toConnection(hits, offset, page?.total ?: hits.size)
     }
 }
 
@@ -197,23 +177,36 @@ class WebSecurityAlertAdapter(
             .build().toUriString()
         val page = client.get("security-log", webClient, uri, SecurityAlertPageDto::class.java)
         val alerts = page?.items?.map { it.toDomain() } ?: emptyList()
-        return toConnection(alerts, offset, limit, page?.total ?: alerts.size)
+        return toConnection(alerts, offset, page?.total ?: alerts.size)
     }
 }
 
 /**
- * offset/limit 결과를 Relay cursor connection 으로 변환한다 (ADR-0006).
- * 제네릭 [PageDto] 는 Jackson 의 타입 소거 때문에 역직렬화가 불안정하므로, service 별
- * 구체 page DTO 를 둔다 (아래).
+ * 키 집합을 단건 호출로 병렬 fan-out 해 키->값 맵으로 모은다. 값이 없는(null) 키는 맵에서 빠진다.
+ *
+ * DataLoader 의 batch 함수가 호출하는 어댑터 메서드(`findByIds` 등) 공통 구현이다.
+ * downstream 이 bulk 조회를 지원하지 않으므로 단건 호출을 coroutine 으로 동시에 날린다 —
+ * GraphQL 쿼리 레벨의 N+1(직렬 N회)은 사라지고 게이트웨이 내부 병렬 호출 한 묶음이 된다.
  */
-private fun <T> toConnection(items: List<T>, offset: Int, limit: Int, total: Int): Connection<T> {
+private suspend fun <K, V> parallelByKeys(keys: Set<K>, fetch: suspend (K) -> V?): Map<K, V> =
+    coroutineScope {
+        keys.map { key -> async { key to fetch(key) } }
+            .awaitAll()
+            .mapNotNull { (key, value) -> value?.let { key to it } }
+            .toMap()
+    }
+
+/**
+ * offset/limit 결과를 Relay cursor connection 으로 변환한다 (ADR-0006).
+ * cursor 는 항목의 offset 을 [CursorCodec] 으로 감싼 불투명 문자열이다.
+ */
+private fun <T> toConnection(items: List<T>, offset: Int, total: Int): Connection<T> {
     val edges = items.mapIndexed { index, node ->
         Edge(cursor = CursorCodec.encode(offset + index), node = node)
     }
-    val hasNext = offset + items.size < total
     return Connection(
         edges = edges,
-        pageInfo = PageInfo(hasNextPage = hasNext, endCursor = edges.lastOrNull()?.cursor),
+        pageInfo = PageInfo(hasNextPage = offset + items.size < total, endCursor = edges.lastOrNull()?.cursor),
         totalCount = total,
     )
 }
