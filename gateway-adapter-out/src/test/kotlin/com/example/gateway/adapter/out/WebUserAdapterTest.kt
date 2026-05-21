@@ -16,7 +16,6 @@ import io.github.resilience4j.timelimiter.TimeLimiterConfig
 import io.github.resilience4j.timelimiter.TimeLimiterRegistry
 import kotlinx.coroutines.runBlocking
 import org.assertj.core.api.Assertions.assertThat
-import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -99,12 +98,11 @@ class WebUserAdapterTest {
             get(urlPathEqualTo("/api/v1/users/u-err")).willReturn(aResponse().withStatus(503)),
         )
 
-        assertThatThrownBy {
-            kotlinx.coroutines.runBlocking { adapter.findById("u-err") }
-        }
+        val thrown = runCatching { adapter.findById("u-err") }.exceptionOrNull()
+
+        assertThat(thrown)
             .isInstanceOf(DownstreamException::class.java)
-            .extracting { (it as DownstreamException).serviceName }
-            .isEqualTo("auth")
+        assertThat((thrown as DownstreamException).serviceName).isEqualTo("auth")
     }
 
     @Test
