@@ -26,7 +26,7 @@ dependencies {
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
 
     // Resilience4j — application.yml 의 resilience4j.* 바인딩 + actuator 노출.
-    implementation("io.github.resilience4j:resilience4j-spring-boot3:2.3.0")
+    implementation("io.github.resilience4j:resilience4j-spring-boot3:2.4.0")
 
     // 관측 — actuator + Prometheus + OpenTelemetry trace.
     implementation("org.springframework.boot:spring-boot-starter-actuator")
