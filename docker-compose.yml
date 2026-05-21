@@ -1,0 +1,35 @@
+# GraphQL gateway 로컬 시연용 compose.
+#
+# downstream 9 service 를 따로 띄우지 않고, 게이트웨이를 demo 프로필로 실행한다.
+# demo 프로필에서는 in-memory stub 어댑터가 downstream 응답을 대신하고 JWT 인증이 꺼져,
+# 게이트웨이 하나만으로 GraphQL playground 와 쿼리 시연이 가능하다.
+#
+#   docker compose up --build
+#   ./integration-demo.sh         # GraphQL 쿼리 시연
+#   open http://localhost:8080/graphiql
+#
+# 실제 downstream 9 service 와 연동하려면 SPRING_PROFILES_ACTIVE 를 빼고
+# DOWNSTREAM_STUB=false + 각 *_BASE_URL 환경변수를 실제 endpoint 로 지정한다.
+
+services:
+  graphql-gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: graphql-gateway:local
+    container_name: graphql-gateway
+    ports:
+      - "8080:8080"
+    environment:
+      # demo 프로필 — stub 어댑터 + 인증 off.
+      SPRING_PROFILES_ACTIVE: demo
+      # OTLP collector 가 없으므로 trace export 를 끈다.
+      MANAGEMENT_OTLP_TRACING_EXPORT_ENABLED: "false"
+      MANAGEMENT_TRACING_ENABLED: "false"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/actuator/health/liveness"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
+    restart: unless-stopped

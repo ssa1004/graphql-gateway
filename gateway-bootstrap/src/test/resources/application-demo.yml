@@ -1,0 +1,25 @@
+# 테스트용 demo 프로필 오버라이드.
+#
+# 테스트는 downstream / auth-service 가 없는 환경에서 돈다. 운영 application-demo.yml 의
+# OAuth2 resource server JWT 설정(issuer-uri 등)은 컨텍스트 적재 시 issuer 메타데이터를
+# 가져오려 하므로, 테스트에서는 jwt 설정을 비워 그 fetch 자체가 일어나지 않게 한다.
+# 인증은 어차피 permit-all 로 꺼져 있다.
+spring:
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.security.oauth2.resource.servlet.OAuth2ResourceServerAutoConfiguration
+
+gateway:
+  downstream:
+    stub: true
+  security:
+    permit-all: true
+
+# OTLP collector 가 테스트 환경엔 없다 — trace export 시도를 끄고 noop 으로.
+management:
+  otlp:
+    tracing:
+      export:
+        enabled: false
+  tracing:
+    enabled: false

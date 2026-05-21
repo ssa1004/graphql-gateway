@@ -1,0 +1,31 @@
+{{ .Chart.Name }} v{{ .Chart.AppVersion }} 가 namespace "{{ .Release.Namespace }}" 에 설치되었습니다.
+
+릴리스 이름: {{ .Release.Name }}
+이미지: {{ include "graphql-gateway.image" . }}
+프로필: {{ .Values.springProfile }}
+복제본: {{ if .Values.autoscaling.enabled }}HPA {{ .Values.autoscaling.minReplicas }}~{{ .Values.autoscaling.maxReplicas }}{{ else }}{{ .Values.replicaCount }}{{ end }}
+downstream 모드: {{ if .Values.downstream.stub }}stub (in-memory){{ else }}실제 9 service 호출{{ end }}
+
+상태 확인:
+  kubectl -n {{ .Release.Namespace }} rollout status deploy/{{ include "graphql-gateway.fullname" . }}
+  kubectl -n {{ .Release.Namespace }} get pods -l app.kubernetes.io/instance={{ .Release.Name }}
+
+{{- if .Values.ingress.enabled }}
+
+GraphQL endpoint:
+{{- range .Values.ingress.hosts }}
+  https://{{ .host }}/graphql
+{{- end }}
+{{- else }}
+
+ClusterIP service — port-forward 로 접근:
+  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "graphql-gateway.fullname" . }} 8080:{{ .Values.service.port }}
+  GraphQL:    http://localhost:8080/graphql
+  playground: http://localhost:8080/graphiql
+{{- end }}
+
+{{- if .Values.auth.permitAll }}
+
+[경고] auth.permitAll=true 입니다 — JWT 인증이 꺼져 있습니다. 데모 전용 설정이며
+운영에서는 false 로 두십시오.
+{{- end }}

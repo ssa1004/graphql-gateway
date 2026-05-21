@@ -1,0 +1,171 @@
+# GraphQL gateway 설정.
+#
+# 환경별 차이는 Spring profile 로 가른다:
+#   - 기본(prod 지향): downstream 9 service 의 실제 REST 를 호출, JWT 검증 on.
+#   - demo            : downstream stub + 인증 off — downstream 이 안 떠 있어도 게이트웨이를
+#                       띄우고 GraphQL playground / 데모 스크립트를 돌릴 수 있다.
+#
+# 모든 외부 endpoint 는 환경변수로 주입 가능하게 두었다 (Helm ConfigMap 이 채운다).
+
+spring:
+  application:
+    name: graphql-gateway
+
+  graphql:
+    # schema.graphqls 위치 — classpath:graphql/ (기본값) 를 명시.
+    schema:
+      locations: classpath:graphql/
+      printer:
+        enabled: true   # /graphql/schema 로 SDL 노출 (디버깅용)
+    graphiql:
+      # 개발용 GraphQL playground UI. /graphiql 로 접속.
+      enabled: true
+      path: /graphiql
+
+  # JWT 검증 — auth-service 의 JWK Set 으로 Bearer 토큰 서명을 확인 (ADR-0004).
+  # demo 프로필에서는 security.permit-all=true 라 이 설정이 실제로 쓰이지 않는다.
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${AUTH_ISSUER_URI:http://localhost:8081/realms/portfolio}
+          # issuer 의 well-known 으로 jwk-set-uri 를 못 가져오는 환경(예: issuer 미가용)
+          # 에서는 jwk-set-uri 를 직접 지정한다.
+          jwk-set-uri: ${AUTH_JWK_SET_URI:http://localhost:8081/realms/portfolio/protocol/openid-connect/certs}
+
+server:
+  port: 8080
+  shutdown: graceful
+
+# ----------------------------------------------------------------------------
+# 게이트웨이 자체 설정 (gateway-adapter-* 의 @ConfigurationProperties 바인딩)
+# ----------------------------------------------------------------------------
+gateway:
+  downstream:
+    # true 면 in-memory stub 어댑터 — downstream 9 service 미가용 시. 운영은 false.
+    stub: ${DOWNSTREAM_STUB:false}
+    timeout-ms: ${DOWNSTREAM_TIMEOUT_MS:2000}
+    auth:
+      base-url: ${AUTH_BASE_URL:http://localhost:8081}
+    commerce:
+      base-url: ${COMMERCE_BASE_URL:http://localhost:8082}
+    marketplace:
+      base-url: ${MARKETPLACE_BASE_URL:http://localhost:8083}
+    billing:
+      base-url: ${BILLING_BASE_URL:http://localhost:8084}
+    gpu:
+      base-url: ${GPU_BASE_URL:http://localhost:8085}
+    notification:
+      base-url: ${NOTIFICATION_BASE_URL:http://localhost:8086}
+    feed:
+      base-url: ${FEED_BASE_URL:http://localhost:8087}
+    search:
+      base-url: ${SEARCH_BASE_URL:http://localhost:8088}
+    security-log:
+      base-url: ${SECURITY_LOG_BASE_URL:http://localhost:8089}
+
+  # 쿼리 complexity / depth 제한 — GraphQL DoS 방어 (ADR-0008).
+  query-guard:
+    max-depth: ${QUERY_MAX_DEPTH:15}
+    max-complexity: ${QUERY_MAX_COMPLEXITY:200}
+
+  security:
+    # true 면 인증을 끈다 — downstream/auth-service 미가용 데모 전용. 운영은 false.
+    permit-all: ${SECURITY_PERMIT_ALL:false}
+
+# ----------------------------------------------------------------------------
+# Resilience4j — downstream 호출 보호 (ADR-0003)
+# ----------------------------------------------------------------------------
+# instance 이름은 downstream service 식별자(auth/commerce/...). 기본값을 default 에 두고
+# 9개 instance 가 상속한다. 404(NotFoundSignal)는 정상 흐름이므로 회로 실패로 집계하지 않는다.
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 20
+        minimum-number-of-calls: 10
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10s
+        permitted-number-of-calls-in-half-open-state: 5
+        automatic-transition-from-open-to-half-open-enabled: true
+        # 404 는 "대상 없음" 이라는 정상 흐름 — 회로 실패율에서 제외.
+        ignore-exceptions:
+          - com.example.gateway.adapter.out.web.NotFoundSignal
+    instances:
+      auth: { base-config: default }
+      commerce: { base-config: default }
+      marketplace: { base-config: default }
+      billing: { base-config: default }
+      gpu: { base-config: default }
+      notification: { base-config: default }
+      feed: { base-config: default }
+      search: { base-config: default }
+      security-log: { base-config: default }
+
+  retry:
+    configs:
+      default:
+        max-attempts: 3
+        wait-duration: 200ms
+        enable-exponential-backoff: true
+        exponential-backoff-multiplier: 2
+        # 404 / 클라이언트 입력 오류는 재시도해도 결과가 같다 — 재시도 대상에서 제외.
+        ignore-exceptions:
+          - com.example.gateway.adapter.out.web.NotFoundSignal
+    instances:
+      auth: { base-config: default }
+      commerce: { base-config: default }
+      marketplace: { base-config: default }
+      billing: { base-config: default }
+      gpu: { base-config: default }
+      notification: { base-config: default }
+      feed: { base-config: default }
+      search: { base-config: default }
+      security-log: { base-config: default }
+
+  timelimiter:
+    configs:
+      default:
+        # 단건 시도 타임아웃. WebClient transport 타임아웃(2s)보다 약간 길게 둬서
+        # transport 가 먼저 끊고, timelimiter 는 그 위의 안전망 역할.
+        timeout-duration: 2500ms
+        cancel-running-future: true
+    instances:
+      auth: { base-config: default }
+      commerce: { base-config: default }
+      marketplace: { base-config: default }
+      billing: { base-config: default }
+      gpu: { base-config: default }
+      notification: { base-config: default }
+      feed: { base-config: default }
+      search: { base-config: default }
+      security-log: { base-config: default }
+
+# ----------------------------------------------------------------------------
+# 관측 — actuator + Prometheus + OpenTelemetry trace
+# ----------------------------------------------------------------------------
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, prometheus, metrics, circuitbreakers, retries
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: when-authorized
+  metrics:
+    tags:
+      application: graphql-gateway
+  tracing:
+    sampling:
+      probability: 1.0
+  otlp:
+    tracing:
+      # OpenTelemetry collector. 미설정/미가용이면 export 만 실패하고 앱은 정상.
+      endpoint: ${OTLP_ENDPOINT:http://localhost:4318/v1/traces}
+
+logging:
+  level:
+    com.example.gateway: INFO

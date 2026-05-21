@@ -1,0 +1,253 @@
+# GraphQL gateway schema — 9개 portfolio service 의 REST API 를 한 endpoint 로 묶는 facade.
+#
+# 설계 원칙 (docs/adr/0006):
+#   - nullable 기본. downstream 한 곳이 죽어도 그 필드만 null 로 떨어지고 쿼리 전체는 산다
+#     (partial failure, ADR-0003).
+#   - 목록은 Relay cursor connection (XxxConnection / XxxEdge / PageInfo) 으로 페이징.
+#   - federation 조인 필드 (Order.invoice 등) 는 DataLoader 로 batch — N+1 방지 (ADR-0002).
+#   - mutation 은 최소. 이 gateway 는 조회(BFF) 위주이고, 쓰기는 각 service REST 를 직접 쓴다.
+
+schema {
+    query: Query
+    mutation: Mutation
+}
+
+# ----------------------------------------------------------------------------
+# Query — 9 service 진입점
+# ----------------------------------------------------------------------------
+type Query {
+    "사용자 단건 — auth-service"
+    user(id: ID!): User
+
+    "주문 단건 — commerce-ops"
+    order(id: ID!): Order
+
+    "거래(체결) 단건 — bid-ask-marketplace"
+    trade(id: ID!): Trade
+
+    "인보이스 단건 — billing-platform"
+    invoice(id: ID!): Invoice
+
+    "GPU job 단건 — gpu-job-orchestrator"
+    job(id: ID!): GpuJob
+
+    "통합 검색 — search-service"
+    search(q: String!, first: Int = 20, after: String): SearchConnection!
+
+    "테넌트의 보안 알림 목록 — security-log-search"
+    securityAlerts(tenantId: ID!, first: Int = 20, after: String): SecurityAlertConnection!
+}
+
+# ----------------------------------------------------------------------------
+# Mutation — 최소. 게이트웨이는 조회 위주이므로 쓰기는 알림 읽음 처리 정도만 노출.
+# ----------------------------------------------------------------------------
+type Mutation {
+    "알림 읽음 처리 — notification-hub"
+    markNotificationRead(id: ID!): Notification
+}
+
+# ----------------------------------------------------------------------------
+# User — auth-service. User.notifications 는 notification-hub 로 federation 조인.
+# ----------------------------------------------------------------------------
+type User {
+    id: ID!
+    email: String!
+    displayName: String!
+    roles: [String!]!
+    status: UserStatus!
+    createdAt: String!
+
+    "이 사용자의 최근 알림 — notification-hub (DataLoader batch)"
+    notifications(first: Int = 10): [Notification!]!
+}
+
+enum UserStatus {
+    ACTIVE
+    SUSPENDED
+    DELETED
+}
+
+# ----------------------------------------------------------------------------
+# Order — commerce-ops. Order.invoice 는 billing-platform 으로 federation 조인.
+# ----------------------------------------------------------------------------
+type Order {
+    id: ID!
+    userId: ID!
+    status: OrderStatus!
+    totalAmount: Int!
+    currency: String!
+    placedAt: String!
+
+    "주문자 — auth-service (DataLoader batch)"
+    user: User
+
+    "이 주문의 인보이스 — billing-platform (DataLoader batch)"
+    invoice: Invoice
+}
+
+enum OrderStatus {
+    PLACED
+    PAID
+    SHIPPED
+    DELIVERED
+    CANCELLED
+}
+
+# ----------------------------------------------------------------------------
+# Trade — bid-ask-marketplace. Trade.feed 는 realtime-feed-service 로 federation 조인.
+# ----------------------------------------------------------------------------
+type Trade {
+    id: ID!
+    skuId: ID!
+    buyerId: ID!
+    sellerId: ID!
+    price: Int!
+    status: TradeStatus!
+    matchedAt: String!
+
+    "체결 상품의 실시간 피드 — realtime-feed-service (DataLoader batch)"
+    feed: Feed
+}
+
+enum TradeStatus {
+    MATCHED
+    PAYMENT_AUTHORIZED
+    INSPECTION_PASSED
+    INSPECTION_FAILED
+    COMPLETED
+    REFUNDING
+}
+
+# ----------------------------------------------------------------------------
+# Invoice — billing-platform
+# ----------------------------------------------------------------------------
+type Invoice {
+    id: ID!
+    tenantId: ID!
+    period: String!
+    totalAmount: Int!
+    currency: String!
+    status: InvoiceStatus!
+    issuedAt: String
+}
+
+enum InvoiceStatus {
+    DRAFT
+    ISSUED
+    PAID
+    OVERDUE
+}
+
+# ----------------------------------------------------------------------------
+# GpuJob — gpu-job-orchestrator
+# ----------------------------------------------------------------------------
+type GpuJob {
+    id: ID!
+    name: String!
+    status: JobStatus!
+    gpuType: String!
+    submittedBy: ID!
+    submittedAt: String!
+    startedAt: String
+    finishedAt: String
+
+    "job 제출자 — auth-service (DataLoader batch)"
+    submitter: User
+}
+
+enum JobStatus {
+    QUEUED
+    SCHEDULED
+    RUNNING
+    SUCCEEDED
+    FAILED
+    CANCELLED
+}
+
+# ----------------------------------------------------------------------------
+# Notification — notification-hub
+# ----------------------------------------------------------------------------
+type Notification {
+    id: ID!
+    userId: ID!
+    channel: NotificationChannel!
+    title: String!
+    body: String!
+    read: Boolean!
+    sentAt: String!
+}
+
+enum NotificationChannel {
+    EMAIL
+    PUSH
+    SMS
+}
+
+# ----------------------------------------------------------------------------
+# Feed — realtime-feed-service
+# ----------------------------------------------------------------------------
+type Feed {
+    id: ID!
+    topic: String!
+    lastEventAt: String!
+    subscriberCount: Int!
+}
+
+# ----------------------------------------------------------------------------
+# SecurityAlert — security-log-search
+# ----------------------------------------------------------------------------
+type SecurityAlert {
+    id: ID!
+    tenantId: ID!
+    severity: AlertSeverity!
+    ruleName: String!
+    message: String!
+    detectedAt: String!
+}
+
+enum AlertSeverity {
+    LOW
+    MEDIUM
+    HIGH
+    CRITICAL
+}
+
+# ----------------------------------------------------------------------------
+# SearchHit — search-service
+# ----------------------------------------------------------------------------
+type SearchHit {
+    id: ID!
+    type: String!
+    title: String!
+    score: Float!
+}
+
+# ----------------------------------------------------------------------------
+# Relay cursor connection — 목록 페이징 공통 (ADR-0006)
+# ----------------------------------------------------------------------------
+type PageInfo {
+    hasNextPage: Boolean!
+    endCursor: String
+}
+
+type SearchConnection {
+    edges: [SearchEdge!]!
+    pageInfo: PageInfo!
+    totalCount: Int!
+}
+
+type SearchEdge {
+    cursor: String!
+    node: SearchHit!
+}
+
+type SecurityAlertConnection {
+    edges: [SecurityAlertEdge!]!
+    pageInfo: PageInfo!
+    totalCount: Int!
+}
+
+type SecurityAlertEdge {
+    cursor: String!
+    node: SecurityAlert!
+}
