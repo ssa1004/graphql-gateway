@@ -1,0 +1,70 @@
+---
+# Backstage Software Catalog 정의 — graphql-gateway component + graphql-api.
+# system 정의(ssa1004-portfolio)는 ssa1004/auth-service 레포에 있다.
+
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: graphql-gateway
+  description: "9개 portfolio service 의 REST API 를 GraphQL 한 endpoint 로 묶는 BFF 게이트웨이 — DataLoader N+1 방지, Resilience4j downstream 격리, JWT token relay"
+  annotations:
+    github.com/project-slug: ssa1004/graphql-gateway
+    backstage.io/source-location: url:https://github.com/ssa1004/graphql-gateway
+  tags:
+    - graphql
+    - gateway
+    - bff
+    - dataloader
+    - kotlin
+    - spring-boot
+  links:
+    - url: https://github.com/ssa1004/graphql-gateway
+      title: GitHub Repository
+    - url: https://github.com/ssa1004/graphql-gateway/blob/main/README.md
+      title: README
+    - url: https://github.com/ssa1004/graphql-gateway/tree/main/docs/adr
+      title: ADRs
+spec:
+  type: service
+  lifecycle: experimental
+  owner: user:ssa1004
+  system: ssa1004-portfolio
+  providesApis:
+    - graphql-gateway-api
+  # 게이트웨이는 9개 portfolio service 의 REST API 를 조합한다.
+  dependsOn:
+    - component:auth-service
+    - component:commerce-ops
+    - component:bid-ask-marketplace
+    - component:billing-platform
+    - component:gpu-job-orchestrator
+    - component:search-service
+    - component:security-log-search
+    - component:notification-hub
+    - component:realtime-feed-service
+
+---
+apiVersion: backstage.io/v1alpha1
+kind: API
+metadata:
+  name: graphql-gateway-api
+  description: "9 service 통합 GraphQL API — user / order / trade / invoice / job / search / securityAlerts 조회와 service 간 조인"
+  annotations:
+    github.com/project-slug: ssa1004/graphql-gateway
+spec:
+  type: graphql
+  lifecycle: experimental
+  owner: user:ssa1004
+  system: ssa1004-portfolio
+  definition:
+    text: |
+      GraphQL gateway 의 schema 는 레포의 다음 경로에 있다.
+      gateway-bootstrap/src/main/resources/graphql/schema.graphqls
+
+      Query 진입점:
+        user(id), order(id), trade(id), invoice(id), job(id),
+        search(q, first, after), securityAlerts(tenantId, first, after)
+      federation 조인:
+        Order.invoice, Order.user, Trade.feed, User.notifications, GpuJob.submitter
+      Mutation:
+        markNotificationRead(id)

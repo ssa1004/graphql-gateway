@@ -1,0 +1,15 @@
+# demo 프로필 — downstream 9 service 와 auth-service 가 안 떠 있어도 게이트웨이를 띄운다.
+#
+#   ./gradlew :gateway-bootstrap:bootRun --args='--spring.profiles.active=demo'
+#
+# stub 어댑터가 in-memory 데이터를 반환하고 인증이 꺼지므로, GraphQL playground(/graphiql)
+# 에서 바로 쿼리를 시연할 수 있다. 운영에서는 절대 쓰지 않는다.
+gateway:
+  downstream:
+    stub: true
+  security:
+    permit-all: true
+
+logging:
+  level:
+    com.example.gateway: DEBUG

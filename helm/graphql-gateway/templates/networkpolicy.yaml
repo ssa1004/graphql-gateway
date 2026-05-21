@@ -1,0 +1,63 @@
+{{- if .Values.networkPolicy.enabled -}}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "graphql-gateway.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "graphql-gateway.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "graphql-gateway.selectorLabels" . | nindent 6 }}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # ingress controller namespace 에서 오는 트래픽 허용 (외부 -> 게이트웨이 8080).
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              {{- toYaml .Values.networkPolicy.ingressNamespaceSelector | nindent 14 }}
+      ports:
+        - port: 8080
+          protocol: TCP
+    # 같은 namespace 내부 (예: prometheus operator 의 ServiceMonitor) 에서 metrics scrape.
+    - from:
+        - namespaceSelector: {}
+      ports:
+        - port: 8080
+          protocol: TCP
+  egress:
+    # DNS — kube-dns / coredns 는 kube-system.
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    # downstream 9 service + auth-service(JWK Set) + OTLP collector.
+    # 같은 클러스터의 다른 namespace 라고 가정하고 8080 / 4318 을 허용한다. 다른 포트를
+    # 쓰는 환경이면 이 목록을 조정한다.
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - port: 8080
+          protocol: TCP
+        - port: 4318
+          protocol: TCP
+    # 외부 issuer / collector 가 클러스터 밖에 있을 때를 위한 HTTPS 아웃바운드.
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+      ports:
+        - port: 443
+          protocol: TCP
+{{- end -}}

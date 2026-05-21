@@ -1,0 +1,21 @@
+apiVersion: v2
+name: graphql-gateway
+description: 9개 portfolio service 의 REST API 를 GraphQL 한 endpoint 로 묶는 BFF 게이트웨이의 Helm chart
+type: application
+# 애플리케이션 버전과 chart 버전은 분리. appVersion 은 컨테이너 이미지 태그의 기본값으로도
+# 쓰이므로 image.tag 를 비우면 이 값이 채워진다.
+version: 0.1.0
+appVersion: "0.1.0"
+kubeVersion: ">=1.27.0-0"
+keywords:
+  - graphql
+  - gateway
+  - bff
+  - dataloader
+  - federation
+home: https://github.com/ssa1004/graphql-gateway
+sources:
+  - https://github.com/ssa1004/graphql-gateway
+maintainers:
+  - name: ssa1004
+    email: wittyahn@users.noreply.github.com
