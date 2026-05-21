@@ -222,9 +222,8 @@ host 화이트리스트 / RFC1918·link-local 차단 / DNS rebinding 방어를 �
   `schema.graphqls` 한 파일에 명시되고, introspection 으로 검사 가능하다. REST 처럼 endpoint
   가 흩어져 누락될 표면이 없다.
 - **schema 변경 추적** — schema 의 타입 / 필드를 바꾸면 resolver (`@QueryMapping` /
-  `@SchemaMapping` / `@BatchMapping`) 와 도메인 모델도 함께 고친다 (AGENTS.md 의 repo 제약).
-  schema 와 코드가 한 commit 으로 움직여, SDL 과 실제 구현이 어긋난 그림자 필드가 생기지
-  않는다.
+  `@SchemaMapping` / `@BatchMapping`) 와 도메인 모델도 한 commit 으로 함께 고친다.
+  SDL 과 실제 구현이 어긋난 그림자 필드가 생기지 않는다.
 - `catalog-info.yaml` (Backstage) 가 service / API inventory 의 진실원본 — `graphql-gateway`
   Component + `graphql-gateway-api` API 를 등록하고, `dependsOn` 으로 9개 downstream
   component 의존을 명시한다. README + `docs/adr/` 가 설계 / 운영 결정을 추적한다.

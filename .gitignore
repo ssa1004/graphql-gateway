@@ -15,4 +15,5 @@
 .env.local
 .claude/
 .codex/
+AGENTS.md
 .kotlin/
