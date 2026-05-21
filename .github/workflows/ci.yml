@@ -21,7 +21,7 @@ jobs:
       # 외부 인프라 없이 자족적으로 돈다.
       - name: gradle check
         run: ./gradlew check --no-daemon
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: test-reports
