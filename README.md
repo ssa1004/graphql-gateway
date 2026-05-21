@@ -242,6 +242,7 @@ WireMock 과 stub 어댑터로 모든 테스트가 자족적으로 동작합니�
 | `CursorCodecTest` (domain) | Relay cursor 인코딩 / 디코딩 |
 | `GatewayQueryServiceTest` (application) | use case 위임, DataLoader batch 빈-입력 처리 |
 | `WebUserAdapterTest` (adapter-out) | WireMock 으로 WebClient + Resilience4j (200 / 404 / 5xx) |
+| `GatewayApplicationContextTest` (bootstrap) | demo 프로필 Spring 컨텍스트 적재 — 빈 배선 + schema 매핑 + DataLoader 등록 |
 | `GatewayGraphQlTest` (bootstrap) | `GraphQlTester` 로 9 service 조회 + 조인 + 페이징 + mutation |
 | `DownstreamWireMockTest` (bootstrap) | WireMock downstream — 정상 변환 + 부분 실패 (5xx 격리) |
 | `QueryGuardTest` (bootstrap) | depth / complexity 한계 초과 쿼리 거부 |
