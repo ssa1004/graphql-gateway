@@ -2,7 +2,7 @@
 // 이 레포는 100% Kotlin — Java 소스 0. 그래서 Lombok / annotationProcessor 도 없다.
 plugins {
     kotlin("jvm") version "2.0.21" apply false
-    kotlin("plugin.spring") version "2.0.21" apply false
+    kotlin("plugin.spring") version "2.3.21" apply false
     id("org.springframework.boot") version "3.4.13" apply false
     id("io.spring.dependency-management") version "1.1.7" apply false
 }
