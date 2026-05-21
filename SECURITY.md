@@ -26,8 +26,8 @@
 
 ## 적용 범위
 
-본 저장소 안의 코드 — `gateway-*` 모듈, `helm/`, `scripts/`, GitHub Actions workflow — 만
-대상입니다. 외부 의존 라이브러리의 취약점은 업스트림에 직접 보고해 주세요.
+본 저장소 안의 코드 — `gateway-*` 모듈, `helm/`, `integration-demo.sh`, GitHub Actions
+workflow — 만 대상입니다. 외부 의존 라이브러리의 취약점은 업스트림에 직접 보고해 주세요.
 
 ## 게이트웨이 보안 관련 메모
 
