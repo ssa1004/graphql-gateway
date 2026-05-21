@@ -1,6 +1,7 @@
 package com.example.gateway.adapter.graphql
 
 import com.example.gateway.application.usecase.GatewayQueryService
+import com.example.gateway.domain.Connection
 import com.example.gateway.domain.CursorCodec
 import com.example.gateway.domain.GpuJob
 import com.example.gateway.domain.Invoice
@@ -50,16 +51,16 @@ class QueryController(
         @Argument q: String,
         @Argument first: Int,
         @Argument after: String?,
-    ): GqlConnection<SearchHit> =
-        queryService.search(q, startOffset(after), first.coerceLimit()).toGql()
+    ): Connection<SearchHit> =
+        queryService.search(q, startOffset(after), first.coerceLimit())
 
     @QueryMapping
     suspend fun securityAlerts(
         @Argument tenantId: String,
         @Argument first: Int,
         @Argument after: String?,
-    ): GqlConnection<SecurityAlert> =
-        queryService.securityAlerts(tenantId, startOffset(after), first.coerceLimit()).toGql()
+    ): Connection<SecurityAlert> =
+        queryService.securityAlerts(tenantId, startOffset(after), first.coerceLimit())
 }
 
 /**
