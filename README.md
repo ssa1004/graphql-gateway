@@ -298,6 +298,7 @@ endpoint 로 묶습니다.
 ## 문서
 
 - [docs/adr/](docs/adr/) — 아키텍처 결정 기록 (ADR) 9건
+- [docs/security/owasp-mapping.md](docs/security/owasp-mapping.md) — OWASP API Security Top 10 (2023) 매핑
 - [CONTRIBUTING.md](CONTRIBUTING.md) — 개발 흐름, commit 규칙
 - [SECURITY.md](SECURITY.md) — 보안 정책, 취약점 보고
 
