@@ -14,9 +14,9 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-webflux")
 
     // Resilience4j — CB + retry + timelimiter. reactor 연동 모듈로 WebClient 호출을 감싼다.
-    implementation("io.github.resilience4j:resilience4j-spring-boot3:2.3.0")
-    implementation("io.github.resilience4j:resilience4j-reactor:2.3.0")
-    implementation("io.github.resilience4j:resilience4j-kotlin:2.3.0")
+    implementation("io.github.resilience4j:resilience4j-spring-boot3:2.4.0")
+    implementation("io.github.resilience4j:resilience4j-reactor:2.4.0")
+    implementation("io.github.resilience4j:resilience4j-kotlin:2.4.0")
 
     // Caffeine — resolver 캐시 (downstream 응답 단기 캐싱 + stampede 회피).
     implementation("org.springframework.boot:spring-boot-starter-cache")
