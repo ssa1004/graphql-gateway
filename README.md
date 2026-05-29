@@ -147,6 +147,14 @@ graph LR
 downstream 9 service 가 떠 있지 않아도 게이트웨이를 실행할 수 있습니다. `demo` 프로필이
 in-memory stub 어댑터로 downstream 응답을 대신하고 JWT 인증을 끕니다.
 
+> `make help` 로 전체 명령을 볼 수 있습니다. 가장 빠른 길:
+> ```bash
+> make up                            # 게이트웨이 기동 (demo 프로필 — stub 어댑터)
+> make demo                          # 9 service 조회 + 조인 GraphQL 쿼리 시연
+> open http://localhost:8080/graphiql  # GraphQL playground
+> ```
+> 호스트에서 직접 띄우려면 `make run` (= `./gradlew :gateway-bootstrap:bootRun`).
+
 ### Gradle 로 실행
 
 ```bash
@@ -299,6 +307,7 @@ endpoint 로 묶습니다.
 ## 문서
 
 - [docs/adr/](docs/adr/) — 아키텍처 결정 기록 (ADR) 9건
+- [docs/backend-skills-index.md](docs/backend-skills-index.md) — 이 레포가 시연하는 백엔드 패턴을 "코드 위치 → 왜(ADR) → 이론([dev-lab](https://github.com/ssa1004/dev-lab))" 으로 잇는 학습 인덱스 (공부 목적)
 - [docs/security/owasp-mapping.md](docs/security/owasp-mapping.md) — OWASP API Security Top 10 (2023) 매핑
 - [CONTRIBUTING.md](CONTRIBUTING.md) — 개발 흐름, commit 규칙
 - [SECURITY.md](SECURITY.md) — 보안 정책, 취약점 보고
