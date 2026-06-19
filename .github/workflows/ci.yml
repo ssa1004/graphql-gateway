@@ -27,6 +27,45 @@ jobs:
           name: test-reports
           path: '**/build/reports/tests/**'
 
+      # 커버리지 — 5개 모듈을 한 리포트로 병합 (Kover). check 가 만든 테스트 데이터를 재사용.
+      - name: Kover coverage 리포트 (병합)
+        run: ./gradlew koverXmlReport koverHtmlReport --no-daemon
+      # 병합 XML(JaCoCo 스키마와 동일)에서 line coverage 를 계산해 job summary 와
+      # shields.io endpoint 배지용 JSON 을 만든다. 외부 액션 없이 자족적으로 — 숫자는
+      # 실제 테스트 실행 결과에서만 나온다 (날조 없음).
+      - name: 커버리지 계산 + 배지 endpoint JSON
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import os, glob, xml.etree.ElementTree as ET
+          xmls = glob.glob('build/reports/kover/report.xml')
+          if not xmls:
+              raise SystemExit('Kover XML report not found')
+          root = ET.parse(xmls[0]).getroot()
+          # 최상위 <counter type="LINE" .../> 가 전체 합계(JaCoCo/Kover 공통 스키마).
+          line = next(c for c in root.findall('counter') if c.get('type') == 'LINE')
+          covered = int(line.get('covered')); missed = int(line.get('missed'))
+          total = covered + missed
+          pct = round(100.0 * covered / total, 1) if total else 0.0
+          color = 'brightgreen' if pct >= 80 else 'green' if pct >= 70 else 'yellowgreen' if pct >= 60 else 'yellow' if pct >= 50 else 'orange' if pct >= 40 else 'red'
+          os.makedirs('build/reports/kover/badges', exist_ok=True)
+          import json
+          with open('build/reports/kover/badges/coverage.json', 'w') as f:
+              json.dump({'schemaVersion': 1, 'label': 'coverage', 'message': f'{pct}%', 'color': color}, f)
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as s:
+              s.write('### Coverage (Kover, 5-module merged)\n')
+              s.write(f'- line coverage: **{pct}%** ({covered}/{total} lines)\n')
+          print(f'line coverage: {pct}% ({covered}/{total})')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report
+          path: |
+            build/reports/kover/html/**
+            build/reports/kover/report.xml
+            build/reports/kover/badges/**
+
   static-analysis:
     name: Static analysis (Kotlin 컴파일)
     runs-on: ubuntu-latest
