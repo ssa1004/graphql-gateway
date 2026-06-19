@@ -3,7 +3,7 @@
 plugins {
     kotlin("jvm") version "2.0.21" apply false
     kotlin("plugin.spring") version "2.0.21" apply false
-    id("org.springframework.boot") version "3.4.13" apply false
+    id("org.springframework.boot") version "3.5.15" apply false
     id("io.spring.dependency-management") version "1.1.7" apply false
     // Kover — Kotlin 네이티브 커버리지. 루트에 적용해 5개 모듈을 한 리포트로 병합한다.
     id("org.jetbrains.kotlinx.kover") version "0.8.3"
@@ -60,7 +60,7 @@ subprojects {
 
     the<io.spring.gradle.dependencymanagement.dsl.DependencyManagementExtension>().apply {
         imports {
-            mavenBom("org.springframework.boot:spring-boot-dependencies:3.4.13")
+            mavenBom("org.springframework.boot:spring-boot-dependencies:3.5.15")
         }
     }
 
