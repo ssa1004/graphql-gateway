@@ -2,6 +2,7 @@
 
 [![CI](https://github.com/ssa1004/graphql-gateway/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ssa1004/graphql-gateway/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/ssa1004/graphql-gateway/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/ssa1004/graphql-gateway/actions/workflows/codeql.yml)
+[![Coverage](https://img.shields.io/badge/coverage-Kover%20report-blue?logo=kotlin&logoColor=white)](https://github.com/ssa1004/graphql-gateway/actions/workflows/ci.yml)
 [![Java](https://img.shields.io/badge/Java-21-orange?logo=openjdk&logoColor=white)](https://openjdk.org/projects/jdk/21/)
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.0.21-7F52FF?logo=kotlin&logoColor=white)](https://kotlinlang.org/)
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.4.13-6DB33F?logo=springboot&logoColor=white)](https://spring.io/projects/spring-boot)
@@ -351,6 +352,24 @@ WireMock 과 stub 어댑터로 모든 테스트가 자족적으로 동작합니�
 ./gradlew check                       # 전체
 ./gradlew :gateway-bootstrap:test     # GraphQlTester + WireMock 통합 테스트
 ```
+
+### 커버리지 (Kover)
+
+5개 모듈의 커버리지를 [Kover](https://github.com/Kotlin/kotlinx-kover)(Kotlin 네이티브
+커버리지)로 측정해 **하나의 병합 리포트**로 모읍니다. 루트에서 한 번 돌리면 모듈을 가로지르는
+단일 HTML / XML 리포트가 나옵니다.
+
+```bash
+./gradlew koverHtmlReport             # 병합 HTML — build/reports/kover/html/index.html
+./gradlew koverXmlReport              # 병합 XML  — build/reports/kover/report.xml
+./gradlew koverLog                    # 콘솔에 커버리지 % 출력
+```
+
+CI(`ci.yml`)는 매 push·PR 에서 이 병합 리포트를 생성해 line coverage 를 job summary 에
+적고, HTML 리포트와 배지 JSON 을 아티팩트로 올립니다. README 상단 **coverage** 배지는 그
+실행으로 연결됩니다 — 숫자는 실제 테스트 실행에서만 산출하며 손으로 적지 않습니다. Spring
+Boot main 진입점과 demo 전용 stub 데이터는 분모에서 제외해 숫자가 부풀지 않게 했습니다
+([build.gradle.kts](build.gradle.kts) 의 `kover { reports.filters }`).
 
 ## 배포 (Helm)
 
