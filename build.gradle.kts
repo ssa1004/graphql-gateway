@@ -1,7 +1,7 @@
 // 루트 빌드 — 공통 conventions. 각 모듈이 상속받는 공유 설정.
 // 이 레포는 100% Kotlin — Java 소스 0. 그래서 Lombok / annotationProcessor 도 없다.
 plugins {
-    kotlin("jvm") version "2.0.21" apply false
+    kotlin("jvm") version "2.4.0" apply false
     kotlin("plugin.spring") version "2.0.21" apply false
     id("org.springframework.boot") version "3.5.15" apply false
     id("io.spring.dependency-management") version "1.1.7" apply false
