@@ -39,7 +39,10 @@ jobs:
           build-mode: manual
 
       - name: Build
-        run: ./gradlew compileKotlin --no-daemon
+        # CodeQL 트레이서가 실제 컴파일을 관찰해야 소스가 추출된다. build-cache /
+        # incremental 이 걸리면 compileKotlin 이 FROM-CACHE 로 떠서 "no source code
+        # seen during build" 로 실패한다 → 캐시/데몬을 끄고 강제 재컴파일한다.
+        run: ./gradlew --no-daemon --no-build-cache --rerun-tasks clean compileKotlin compileJava
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
