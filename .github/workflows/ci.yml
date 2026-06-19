@@ -108,7 +108,7 @@ jobs:
         run: docker build -t graphql-gateway:${{ github.sha }} .
       - name: Trivy scan
         # @master 같은 mutable ref 는 공급망 취약점 — tag 로 고정.
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@0.35.0
         with:
           image-ref: graphql-gateway:${{ github.sha }}
           severity: CRITICAL,HIGH
