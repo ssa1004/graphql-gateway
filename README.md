@@ -7,6 +7,44 @@
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.4.13-6DB33F?logo=springboot&logoColor=white)](https://spring.io/projects/spring-boot)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
+> **English summary** (한국어 전문은 아래로 이어집니다 / full Korean docs follow below)
+
+A GraphQL **Backend-for-Frontend (BFF)** that fronts 9 independent portfolio backend
+services and exposes them through a single `/graphql` endpoint. Clients describe the
+shape of the data they need; the gateway calls the downstream REST services and fills
+that shape in one round trip — instead of each client orchestrating several REST calls
+and stitching the responses together itself.
+
+**What it solves**
+
+- **No over-fetching** — clients select exactly the fields they use.
+- **Call coalescing** — several REST calls for one screen collapse into one GraphQL query.
+- **Server-side joins** — cross-service links (`Order.user`, `Order.invoice`, …) are
+  resolved by the gateway via DataLoader batching (N+1 → 1, see [ADR-0002](docs/adr/0002-dataloader-n-plus-1.md)).
+- **Partial-failure isolation** *(headline feature)* — if one downstream is down, only its
+  field becomes `null` and the rest of the query still succeeds; the error is reported in
+  the GraphQL `errors` array (see [ADR-0003](docs/adr/0003-downstream-resilience.md) and the
+  [sample response](#partial-failure-isolation--sample-response) below).
+
+**Tech** — Kotlin 2.0 (100% Kotlin, 0 Java sources) · Java 21 · Spring Boot 3.4 /
+Spring for GraphQL · Kotlin Coroutines + Reactor · DataLoader · Resilience4j (circuit
+breaker / retry / timeout) · Spring Security (OAuth2 resource server, JWT relay) ·
+Caffeine · Gradle 8 (Kotlin DSL, 5-module hexagonal) · Docker · Helm · GitHub Actions.
+
+**Run it in one minute** — no downstream services required; the `demo` profile serves
+in-memory stub adapters and disables JWT auth:
+
+```bash
+make up                              # start the gateway (demo profile — stub adapters)
+make demo                            # run the GraphQL query demo (9 services + joins)
+open http://localhost:8080/graphiql  # GraphQL playground
+```
+
+See [Quick Start](#quick-start), the [partial-failure sample response](#partial-failure-isolation--sample-response),
+the [GraphQL schema](#graphql-schema), and [docs/adr/](docs/adr/) for the design rationale.
+
+---
+
 9개의 백엔드 service 가 각자 노출하는 REST API 를, 클라이언트가 한 endpoint 로 조회할 수
 있게 묶는 GraphQL 게이트웨이입니다. 여러 service 의 데이터를 한 쿼리로 조합하고, service
 경계를 가로지르는 조인(예: 주문에서 인보이스로)을 GraphQL schema 안에서 자연스럽게
