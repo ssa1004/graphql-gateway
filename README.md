@@ -153,6 +153,60 @@ sequenceDiagram
     GW-->>C: { data: { order: { id, user, invoice: null } }, errors: [...] }
 ```
 
+## Partial-failure isolation — sample response
+
+This is the headline feature: **one dead downstream nulls only its own field, and the
+rest of the query still returns.** GraphQL's partial-failure model carries the failure in
+the `errors` array while keeping the successful data in `data` (ADR-0003, ADR-0005).
+
+게이트웨이의 핵심 동작입니다 — downstream 한 곳(여기선 billing-platform)이 죽어도 그
+필드(`invoice`)만 `null` 로 떨어지고, 나머지(`id`, `status`, `user`)는 정상 응답됩니다.
+장애는 `errors` 배열에 어느 service 였는지(`service`)와 분류(`classification`)와 함께 실립니다.
+
+**Query** — `Order.invoice` 조인 대상인 billing-platform 이 5xx 인 상황:
+
+```graphql
+query {
+  order(id: "o-1") {
+    id
+    status
+    user { id email }     # auth-service — 정상
+    invoice { id status }  # billing-platform — 장애
+  }
+}
+```
+
+**Response** — `invoice` 만 `null`, 나머지는 살아 옴. `errors[0].path` 가 죽은 필드를,
+`extensions.service` / `extensions.classification` 이 원인을 가리킵니다:
+
+```jsonc
+{
+  "data": {
+    "order": {
+      "id": "o-1",
+      "status": "PAID",
+      "user": { "id": "u-1", "email": "u1@example.com" },
+      "invoice": null
+    }
+  },
+  "errors": [
+    {
+      "message": "downstream service 'billing' 를 일시적으로 사용할 수 없습니다",
+      "path": ["order", "invoice"],
+      "extensions": {
+        "service": "billing",
+        "classification": "DOWNSTREAM_UNAVAILABLE"
+      }
+    }
+  ]
+}
+```
+
+> 이 응답 모양은 `DownstreamWireMockTest`(billing 에 503 stub) 와 `GatewayExceptionResolver`
+> 의 매핑 규칙으로 회귀 검증됩니다 — 손으로 꾸민 화면이 아니라 테스트가 보장하는 계약입니다.
+> billing 외 downstream(auth/commerce)이 정상이면 `user` 조인은 그대로 채워집니다.
+> Live GIF 캡처 방법은 [docs/screenshots/README.md](docs/screenshots/README.md) 참고.
+
 ## 모듈 구조
 
 헥사고날 아키텍처 — 의존 방향은 안쪽(domain)을 향합니다.
