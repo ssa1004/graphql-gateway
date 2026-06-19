@@ -14,6 +14,10 @@ RUN ./gradlew :gateway-bootstrap:bootJar -x test --no-daemon
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
 
+# base 이미지에 박힌 OS 패키지의 패치된 보안 업데이트를 끌어온다 — Trivy 가 잡는
+# fixable HIGH/CRITICAL (예: openssl/libcrypto3/libssl3) 를 마스킹 없이 실제로 해소한다.
+RUN apk upgrade --no-cache
+
 # non-root user (k8s Pod Security Standards restricted 호환).
 RUN addgroup -g 10001 app && adduser -u 10001 -G app -s /bin/sh -D app
 USER 10001:10001
