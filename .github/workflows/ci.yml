@@ -8,20 +8,29 @@ on:
   pull_request:
     branches: [main]
 
+# 같은 ref 의 이전 실행은 취소 — PR 에 연속 push 시 큐가 쌓이지 않게.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# 최소 권한 기본값. SARIF 업로드 등 추가 권한은 해당 job 에서만 올린다.
+permissions:
+  contents: read
+
 jobs:
   build:
     name: Build + 전체 테스트
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4.8.0
         with: { distribution: temurin, java-version: '21', cache: gradle }
       # 전체 테스트 — downstream 9 service 는 WireMock / stub 어댑터로 대체되므로
       # 외부 인프라 없이 자족적으로 돈다.
       - name: gradle check
         run: ./gradlew check --no-daemon
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()
         with:
           name: test-reports
@@ -57,7 +66,7 @@ jobs:
               s.write(f'- line coverage: **{pct}%** ({covered}/{total} lines)\n')
           print(f'line coverage: {pct}% ({covered}/{total})')
           PY
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()
         with:
           name: coverage-report
@@ -71,24 +80,41 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4.8.0
         with: { distribution: temurin, java-version: '21', cache: gradle }
       - run: ./gradlew compileKotlin compileTestKotlin --no-daemon
 
   helm-lint:
-    name: Helm chart lint
+    name: Helm chart lint + kubeconform
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
-      - uses: azure/setup-helm@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: azure/setup-helm@1a275c3b69536ee54be43f2070a358922e12c8d4 # v4.3.1
         with: { version: 'v3.16.2' }
       - run: helm lint helm/graphql-gateway
       - name: Helm template 렌더 검증
         run: |
           helm template gw helm/graphql-gateway > /dev/null
           helm template gw helm/graphql-gateway -f helm/graphql-gateway/values-prod.yaml > /dev/null
+      # 렌더된 매니페스트를 k8s OpenAPI 스키마로 검증 — 잘못된 필드/타입을 lint 가
+      # 못 잡는 부분까지 막는다. CRD(ServiceMonitor 등) 는 missing-schema 로 skip.
+      - name: Install kubeconform
+        run: |
+          curl -fsSL https://github.com/yannh/kubeconform/releases/download/v0.6.7/kubeconform-linux-amd64.tar.gz \
+            | tar -xz -C /usr/local/bin kubeconform
+          kubeconform -v
+      - name: kubeconform (default + prod values)
+        run: |
+          check() {
+            helm template gw helm/graphql-gateway "$@" \
+              | kubeconform -strict -ignore-missing-schemas -summary \
+                  -schema-location default \
+                  -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json'
+          }
+          check
+          check -f helm/graphql-gateway/values-prod.yaml
 
   image:
     name: Docker image build + Trivy scan
@@ -96,19 +122,40 @@ jobs:
     timeout-minutes: 15
     needs: [build]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      # Trivy SARIF 결과를 Security 탭(code scanning) 에 업로드하기 위한 권한.
+      security-events: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4.8.0
         with: { distribution: temurin, java-version: '21', cache: gradle }
       - name: Build bootJar
         run: ./gradlew :gateway-bootstrap:bootJar --no-daemon
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
       - name: Build image
         run: docker build -t graphql-gateway:${{ github.sha }} .
-      - name: Trivy scan
-        # @master 같은 mutable ref 는 공급망 취약점 — tag 로 고정.
-        uses: aquasecurity/trivy-action@0.35.0
+      # SARIF 리포트 — 결과를 Security 탭에 누적해 시간순 추적이 가능하게 한다.
+      # @master 같은 mutable ref 는 공급망 취약점 — SHA 로 고정.
+      - name: Trivy scan (SARIF 리포트)
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # 0.35.0
+        with:
+          image-ref: graphql-gateway:${{ github.sha }}
+          format: sarif
+          output: trivy-results.sarif
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+      - name: Upload Trivy SARIF to Security tab
+        uses: github/codeql-action/upload-sarif@dd903d2e4f5405488e5ef1422510ee31c8b32357 # v3.36.2
+        # 업로드 실패(권한/포크 PR 등) 가 빌드 전체를 깨지 않게 — 게이팅은 아래 scan 이 한다.
+        continue-on-error: true
+        with:
+          sarif_file: trivy-results.sarif
+          category: trivy-container
+      # CRITICAL/HIGH 발견 시 빌드를 실패시키는 게이팅 스캔 — 리포트와 분리해 둔다.
+      - name: Trivy scan (게이팅, fixable CRITICAL/HIGH 차단)
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # 0.35.0
         with:
           image-ref: graphql-gateway:${{ github.sha }}
           severity: CRITICAL,HIGH
