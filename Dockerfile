@@ -14,6 +14,14 @@ RUN ./gradlew :gateway-bootstrap:bootJar -x test --no-daemon
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
 
+# OCI image labels — 레지스트리/스캐너/SBOM 도구가 출처와 라이선스를 읽을 수 있게.
+LABEL org.opencontainers.image.title="graphql-gateway" \
+      org.opencontainers.image.description="9개 portfolio service 의 REST API 를 GraphQL 한 endpoint 로 묶는 BFF 게이트웨이" \
+      org.opencontainers.image.source="https://github.com/ssa1004/graphql-gateway" \
+      org.opencontainers.image.url="https://github.com/ssa1004/graphql-gateway" \
+      org.opencontainers.image.licenses="MIT" \
+      org.opencontainers.image.vendor="ssa1004"
+
 # base 이미지에 박힌 OS 패키지의 패치된 보안 업데이트를 끌어온다 — Trivy 가 잡는
 # fixable HIGH/CRITICAL (예: openssl/libcrypto3/libssl3) 를 마스킹 없이 실제로 해소한다.
 RUN apk upgrade --no-cache
