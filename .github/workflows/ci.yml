@@ -147,7 +147,7 @@ jobs:
           severity: CRITICAL,HIGH
           ignore-unfixed: true
       - name: Upload Trivy SARIF to Security tab
-        uses: github/codeql-action/upload-sarif@dd903d2e4f5405488e5ef1422510ee31c8b32357 # v3.36.2
+        uses: github/codeql-action/upload-sarif@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4.36.2
         # 업로드 실패(권한/포크 PR 등) 가 빌드 전체를 깨지 않게 — 게이팅은 아래 scan 이 한다.
         continue-on-error: true
         with:
