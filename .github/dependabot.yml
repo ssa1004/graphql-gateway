@@ -4,13 +4,14 @@
 #   build.gradle.kts + gradle-wrapper 까지 한 번에 스캔된다 (version catalog 는 미사용).
 # github-actions: ci.yml / codeql.yml 의 actions/* 핀 버전을 갱신.
 #
-# 주기는 weekly — patch 가 매일 쏟아져 PR noise 가 되지 않게. 한 번에 열리는 PR 수도 제한.
+# 주기는 monthly — patch 가 매주 쏟아져 PR noise 가 되지 않게.
+# 각 ecosystem 은 groups 로 모든 업데이트를 PR 하나에 묶는다 (patterns "*"). 한 번에 열리는 PR 수도 제한.
 version: 2
 updates:
   - package-ecosystem: "gradle"
     directory: "/"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
       day: "monday"
     open-pull-requests-limit: 5
     labels:
@@ -18,21 +19,15 @@ updates:
     commit-message:
       prefix: "chore(deps)"
     groups:
-      # Spring 생태계는 BOM 으로 버전이 묶여 움직이므로 한 PR 로 모은다.
-      spring:
+      # gradle 의존성 전체를 grouped PR 하나로 모은다 (Spring BOM / Kotlin 등 함께 움직임).
+      gradle-all:
         patterns:
-          - "org.springframework*"
-          - "io.spring.*"
-      # Kotlin 플러그인 / stdlib / coroutine 도 함께 올라가야 컴파일이 맞는다.
-      kotlin:
-        patterns:
-          - "org.jetbrains.kotlin*"
-          - "org.jetbrains.kotlinx*"
+          - "*"
 
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
       day: "monday"
     open-pull-requests-limit: 5
     labels:
@@ -40,13 +35,18 @@ updates:
       - "ci"
     commit-message:
       prefix: "chore(ci)"
+    groups:
+      # github-actions 핀 버전 전체를 grouped PR 하나로 모은다.
+      github-actions-all:
+        patterns:
+          - "*"
 
   # docker: 루트 Dockerfile 의 base 이미지(eclipse-temurin) 태그 갱신을 추적.
   #   런타임 OS/JRE CVE 패치가 새 base 태그로 나오면 PR 로 올라온다.
   - package-ecosystem: "docker"
     directory: "/"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
       day: "monday"
     open-pull-requests-limit: 5
     labels:
@@ -54,3 +54,8 @@ updates:
       - "docker"
     commit-message:
       prefix: "chore(deps)"
+    groups:
+      # docker base 이미지 업데이트 전체를 grouped PR 하나로 모은다.
+      docker-all:
+        patterns:
+          - "*"
