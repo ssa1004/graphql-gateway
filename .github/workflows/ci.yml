@@ -85,6 +85,44 @@ jobs:
         with: { distribution: temurin, java-version: '21', cache: gradle }
       - run: ./gradlew compileKotlin compileTestKotlin --no-daemon
 
+  schema-contract:
+    name: GraphQL schema contract (drift gate)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4.8.0
+        with: { distribution: temurin, java-version: '21', cache: gradle }
+      # 게이트웨이를 demo 프로필(stub 어댑터 + 인증 off)로 띄운다 — downstream/DB/broker
+      # 등 외부 인프라가 전혀 필요 없다. 서비스 컨테이너를 띄우지 않아도 자족적으로 돈다.
+      - name: Boot gateway (demo, zero-infra) + capture served SDL
+        run: |
+          set -euo pipefail
+          PORT=18432
+          ./gradlew :gateway-bootstrap:bootRun \
+            --args="--spring.profiles.active=demo --server.port=${PORT}" \
+            --no-daemon > /tmp/boot.log 2>&1 &
+          BOOT_PID=$!
+          # health 가 200 을 줄 때까지 카운터 + sleep 으로 폴링 (timeout 명령 비의존).
+          up=0
+          for _ in $(seq 1 120); do
+            if curl -fsS -o /dev/null "http://localhost:${PORT}/actuator/health"; then up=1; break; fi
+            if ! kill -0 "$BOOT_PID" 2>/dev/null; then echo "bootRun exited early"; break; fi
+            sleep 2
+          done
+          if [ "$up" -ne 1 ]; then echo "::error::gateway did not become healthy"; tail -50 /tmp/boot.log; kill "$BOOT_PID" 2>/dev/null || true; exit 1; fi
+          # SchemaPrinter 가 노출하는 resolved SDL 을 가져와 커밋본을 덮어쓴다.
+          curl -fsS "http://localhost:${PORT}/graphql/schema" -o docs/api/schema.graphqls
+          kill "$BOOT_PID" 2>/dev/null || true
+      # 커밋된 계약과 방금 서빙된 스키마가 다르면 빌드 실패 — 스키마 드리프트 게이트.
+      - name: Fail on schema drift
+        run: |
+          if ! git diff --exit-code -- docs/api/schema.graphqls; then
+            echo "::error::Served GraphQL schema differs from docs/api/schema.graphqls."
+            echo "Regenerate it: ./gradlew :gateway-bootstrap:bootRun --args='--spring.profiles.active=demo --server.port=8080' then curl -fsS http://localhost:8080/graphql/schema > docs/api/schema.graphqls"
+            exit 1
+          fi
+
   helm-lint:
     name: Helm chart lint + kubeconform
     runs-on: ubuntu-latest
