@@ -1,0 +1,290 @@
+"This directive allows results to be deferred during execution"
+directive @defer(
+    "Deferred behaviour is controlled by this argument"
+    if: Boolean! = true,
+    "A unique label that represents the fragment being deferred"
+    label: String
+  ) on FRAGMENT_SPREAD | INLINE_FRAGMENT
+
+"Marks the field, argument, input field or enum value as deprecated"
+directive @deprecated(
+    "The reason for the deprecation"
+    reason: String! = "No longer supported"
+  ) on FIELD_DEFINITION | ARGUMENT_DEFINITION | ENUM_VALUE | INPUT_FIELD_DEFINITION
+
+"This directive disables error propagation when a non nullable field returns null for the given operation."
+directive @experimental_disableErrorPropagation on QUERY | MUTATION | SUBSCRIPTION
+
+"Directs the executor to include this field or fragment only when the `if` argument is true"
+directive @include(
+    "Included when true."
+    if: Boolean!
+  ) on FIELD | FRAGMENT_SPREAD | INLINE_FRAGMENT
+
+"Indicates an Input Object is a OneOf Input Object."
+directive @oneOf on INPUT_OBJECT
+
+"Directs the executor to skip this field or fragment when the `if` argument is true."
+directive @skip(
+    "Skipped when true."
+    if: Boolean!
+  ) on FIELD | FRAGMENT_SPREAD | INLINE_FRAGMENT
+
+"Exposes a URL that specifies the behaviour of this scalar."
+directive @specifiedBy(
+    "The URL that specifies the behaviour of this scalar."
+    url: String!
+  ) on SCALAR
+
+"""
+ ----------------------------------------------------------------------------
+ Feed — realtime-feed-service
+ ----------------------------------------------------------------------------
+"""
+type Feed {
+  id: ID!
+  lastEventAt: String!
+  subscriberCount: Int!
+  topic: String!
+}
+
+"""
+ ----------------------------------------------------------------------------
+ GpuJob — gpu-job-orchestrator
+ ----------------------------------------------------------------------------
+"""
+type GpuJob {
+  finishedAt: String
+  gpuType: String!
+  id: ID!
+  name: String!
+  startedAt: String
+  status: JobStatus!
+  submittedAt: String!
+  submittedBy: ID!
+  "job 제출자 — auth-service (DataLoader batch)"
+  submitter: User
+}
+
+"""
+ ----------------------------------------------------------------------------
+ Invoice — billing-platform
+ ----------------------------------------------------------------------------
+"""
+type Invoice {
+  currency: String!
+  id: ID!
+  issuedAt: String
+  period: String!
+  status: InvoiceStatus!
+  tenantId: ID!
+  totalAmount: Int!
+}
+
+"""
+ ----------------------------------------------------------------------------
+ Mutation — 최소. 게이트웨이는 조회 위주이므로 쓰기는 알림 읽음 처리 정도만 노출.
+ ----------------------------------------------------------------------------
+"""
+type Mutation {
+  "알림 읽음 처리 — notification-hub"
+  markNotificationRead(id: ID!): Notification
+}
+
+"""
+ ----------------------------------------------------------------------------
+ Notification — notification-hub
+ ----------------------------------------------------------------------------
+"""
+type Notification {
+  body: String!
+  channel: NotificationChannel!
+  id: ID!
+  read: Boolean!
+  sentAt: String!
+  title: String!
+  userId: ID!
+}
+
+"""
+ ----------------------------------------------------------------------------
+ Order — commerce-ops. Order.invoice 는 billing-platform 으로 federation 조인.
+ ----------------------------------------------------------------------------
+"""
+type Order {
+  currency: String!
+  id: ID!
+  "이 주문의 인보이스 — billing-platform (DataLoader batch)"
+  invoice: Invoice
+  placedAt: String!
+  status: OrderStatus!
+  totalAmount: Int!
+  "주문자 — auth-service (DataLoader batch)"
+  user: User
+  userId: ID!
+}
+
+"""
+ ----------------------------------------------------------------------------
+ Relay cursor connection — 목록 페이징 공통 (ADR-0006)
+ ----------------------------------------------------------------------------
+"""
+type PageInfo {
+  endCursor: String
+  hasNextPage: Boolean!
+}
+
+"""
+ ----------------------------------------------------------------------------
+ Query — 9 service 진입점
+ ----------------------------------------------------------------------------
+"""
+type Query {
+  "인보이스 단건 — billing-platform"
+  invoice(id: ID!): Invoice
+  "GPU job 단건 — gpu-job-orchestrator"
+  job(id: ID!): GpuJob
+  "주문 단건 — commerce-ops"
+  order(id: ID!): Order
+  "통합 검색 — search-service"
+  search(after: String, first: Int = 20, q: String!): SearchConnection!
+  "테넌트의 보안 알림 목록 — security-log-search"
+  securityAlerts(after: String, first: Int = 20, tenantId: ID!): SecurityAlertConnection!
+  "거래(체결) 단건 — bid-ask-marketplace"
+  trade(id: ID!): Trade
+  "사용자 단건 — auth-service"
+  user(id: ID!): User
+}
+
+type SearchConnection {
+  edges: [SearchEdge!]!
+  pageInfo: PageInfo!
+  totalCount: Int!
+}
+
+type SearchEdge {
+  cursor: String!
+  node: SearchHit!
+}
+
+"""
+ ----------------------------------------------------------------------------
+ SearchHit — search-service
+ ----------------------------------------------------------------------------
+"""
+type SearchHit {
+  id: ID!
+  score: Float!
+  title: String!
+  type: String!
+}
+
+"""
+ ----------------------------------------------------------------------------
+ SecurityAlert — security-log-search
+ ----------------------------------------------------------------------------
+"""
+type SecurityAlert {
+  detectedAt: String!
+  id: ID!
+  message: String!
+  ruleName: String!
+  severity: AlertSeverity!
+  tenantId: ID!
+}
+
+type SecurityAlertConnection {
+  edges: [SecurityAlertEdge!]!
+  pageInfo: PageInfo!
+  totalCount: Int!
+}
+
+type SecurityAlertEdge {
+  cursor: String!
+  node: SecurityAlert!
+}
+
+"""
+ ----------------------------------------------------------------------------
+ Trade — bid-ask-marketplace. Trade.feed 는 realtime-feed-service 로 federation 조인.
+ ----------------------------------------------------------------------------
+"""
+type Trade {
+  buyerId: ID!
+  "체결 상품의 실시간 피드 — realtime-feed-service (DataLoader batch)"
+  feed: Feed
+  id: ID!
+  matchedAt: String!
+  price: Int!
+  sellerId: ID!
+  skuId: ID!
+  status: TradeStatus!
+}
+
+"""
+ ----------------------------------------------------------------------------
+ User — auth-service. User.notifications 는 notification-hub 로 federation 조인.
+ ----------------------------------------------------------------------------
+"""
+type User {
+  createdAt: String!
+  displayName: String!
+  email: String!
+  id: ID!
+  "이 사용자의 최근 알림 — notification-hub (DataLoader batch)"
+  notifications(first: Int = 10): [Notification!]!
+  roles: [String!]!
+  status: UserStatus!
+}
+
+enum AlertSeverity {
+  CRITICAL
+  HIGH
+  LOW
+  MEDIUM
+}
+
+enum InvoiceStatus {
+  DRAFT
+  ISSUED
+  OVERDUE
+  PAID
+}
+
+enum JobStatus {
+  CANCELLED
+  FAILED
+  QUEUED
+  RUNNING
+  SCHEDULED
+  SUCCEEDED
+}
+
+enum NotificationChannel {
+  EMAIL
+  PUSH
+  SMS
+}
+
+enum OrderStatus {
+  CANCELLED
+  DELIVERED
+  PAID
+  PLACED
+  SHIPPED
+}
+
+enum TradeStatus {
+  COMPLETED
+  INSPECTION_FAILED
+  INSPECTION_PASSED
+  MATCHED
+  PAYMENT_AUTHORIZED
+  REFUNDING
+}
+
+enum UserStatus {
+  ACTIVE
+  DELETED
+  SUSPENDED
+}
