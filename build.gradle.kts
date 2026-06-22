@@ -1,12 +1,12 @@
 // 루트 빌드 — 공통 conventions. 각 모듈이 상속받는 공유 설정.
 // 이 레포는 100% Kotlin — Java 소스 0. 그래서 Lombok / annotationProcessor 도 없다.
 plugins {
-    kotlin("jvm") version "2.0.21" apply false
-    kotlin("plugin.spring") version "2.0.21" apply false
-    id("org.springframework.boot") version "3.5.15" apply false
+    kotlin("jvm") version "2.4.0" apply false
+    kotlin("plugin.spring") version "2.4.0" apply false
+    id("org.springframework.boot") version "4.1.0" apply false
     id("io.spring.dependency-management") version "1.1.7" apply false
     // Kover — Kotlin 네이티브 커버리지. 루트에 적용해 5개 모듈을 한 리포트로 병합한다.
-    id("org.jetbrains.kotlinx.kover") version "0.8.3"
+    id("org.jetbrains.kotlinx.kover") version "0.9.8"
 }
 
 allprojects {
@@ -60,7 +60,7 @@ subprojects {
 
     the<io.spring.gradle.dependencymanagement.dsl.DependencyManagementExtension>().apply {
         imports {
-            mavenBom("org.springframework.boot:spring-boot-dependencies:3.5.15")
+            mavenBom("org.springframework.boot:spring-boot-dependencies:4.1.0")
         }
     }
 
