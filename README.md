@@ -5,7 +5,7 @@
 [![Coverage](https://img.shields.io/badge/coverage-Kover%20report-blue?logo=kotlin&logoColor=white)](https://github.com/ssa1004/graphql-gateway/actions/workflows/ci.yml)
 [![Java](https://img.shields.io/badge/Java-21-orange?logo=openjdk&logoColor=white)](https://openjdk.org/projects/jdk/21/)
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.0.21-7F52FF?logo=kotlin&logoColor=white)](https://kotlinlang.org/)
-[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.4.13-6DB33F?logo=springboot&logoColor=white)](https://spring.io/projects/spring-boot)
+[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5.15-6DB33F?logo=springboot&logoColor=white)](https://spring.io/projects/spring-boot)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 > **English summary** (한국어 전문은 아래로 이어집니다 / full Korean docs follow below)
@@ -27,7 +27,7 @@ and stitching the responses together itself.
   the GraphQL `errors` array (see [ADR-0003](docs/adr/0003-downstream-resilience.md) and the
   [sample response](#partial-failure-isolation--sample-response) below).
 
-**Tech** — Kotlin 2.0 (100% Kotlin, 0 Java sources) · Java 21 · Spring Boot 3.4 /
+**Tech** — Kotlin 2.0 (100% Kotlin, 0 Java sources) · Java 21 · Spring Boot 3.5 /
 Spring for GraphQL · Kotlin Coroutines + Reactor · DataLoader · Resilience4j (circuit
 breaker / retry / timeout) · Spring Security (OAuth2 resource server, JWT relay) ·
 Caffeine · Gradle 8 (Kotlin DSL, 5-module hexagonal) · Docker · Helm · GitHub Actions.
@@ -70,7 +70,7 @@ the [GraphQL schema](#graphql-schema), and [docs/adr/](docs/adr/) for the design
 ## 기술 스택
 
 - **Language**: Kotlin 2.0 (100% Kotlin — Java 소스 0), Java 21 toolchain
-- **Framework**: Spring Boot 3.4, Spring for GraphQL
+- **Framework**: Spring Boot 3.5, Spring for GraphQL
 - **비동기**: Kotlin Coroutines (suspend resolver), Reactor
 - **N+1 방지**: DataLoader (`@BatchMapping` / `BatchLoaderRegistry`)
 - **downstream 호출**: WebClient (non-blocking)
@@ -276,7 +276,9 @@ http://localhost:8080/graphiql
 ## GraphQL schema
 
 전체 SDL 은 [gateway-bootstrap/src/main/resources/graphql/schema.graphqls](gateway-bootstrap/src/main/resources/graphql/schema.graphqls)
-에 있습니다.
+에 있습니다. 클라이언트가 introspection 으로 보는 **resolved 계약**(런타임이 서빙하는 SDL)
+은 [docs/api/schema.graphqls](docs/api/schema.graphqls) 에 커밋되어 있고, CI 가 demo 프로필로
+게이트웨이를 띄워 서빙되는 스키마와 이 파일이 일치하는지 검증합니다(drift gate, [docs/api/README.md](docs/api/README.md)).
 
 ### Query 진입점 — 9 service
 
