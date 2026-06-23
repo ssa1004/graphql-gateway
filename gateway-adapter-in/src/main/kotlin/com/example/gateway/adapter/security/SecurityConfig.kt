@@ -14,8 +14,10 @@ import org.springframework.security.web.SecurityFilterChain
  * 게이트웨이는 OAuth2 resource server 로 동작한다. 클라이언트가 보낸 Bearer JWT 를
  * auth-service 의 JWK Set 으로 서명 검증한다. 게이트웨이 자체는 토큰을 발급하지 않는다.
  *
- * 검증된 토큰은 [TokenRelayInterceptor] 가 ThreadLocal 에 담아 downstream 호출에 그대로
+ * 검증된 토큰은 [TokenRelayInterceptor] 가 Reactor Context 에 담아 downstream 호출에 그대로
  * relay 한다 (token relay) — downstream 9 service 가 같은 JWT 를 다시 검증한다.
+ * (ThreadLocal 이 아닌 이유는 [com.example.gateway.application.port.TokenRelay] 참고 —
+ *  coroutine / fan-out 스레드 경계를 넘어야 한다.)
  *
  * endpoint 정책:
  *   - /graphql            : 인증 필요 (POST). 게이트웨이의 데이터 진입점.
