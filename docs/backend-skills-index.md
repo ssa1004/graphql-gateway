@@ -12,8 +12,8 @@
 |------|---------------|---------|-------|
 | **BFF 형태 게이트웨이** | `gateway-adapter-in` GraphQL controller (`@QueryMapping`) + `gateway-adapter-out` 9 service WebClient | [ADR-0001](adr/0001-graphql-gateway-role.md) | Federation 대신 downstream REST 직접 호출 + schema 단독 소유 |
 | **over/under-fetching 제거** | schema 기반 필드 선택 — `gateway-bootstrap/.../schema.graphqls` | ADR-0001 | 클라이언트가 쓸 필드만, 한 화면을 한 쿼리로 |
-| **service 간 조인 (schema stitching)** | `Order.user` / `Order.invoice` 등 `@SchemaMapping` resolver | ADR-0001, [ADR-0006](adr/0006-schema-design.md) | service 경계를 가로지르는 조인을 게이트웨이 schema 에서 표현 |
-| **Relay cursor connection 페이징** | `CursorCodec` (domain) + `search` / `securityAlerts` connection 타입 | ADR-0006 | offset 노출 대신 불투명 cursor — 페이징 구현 바뀌어도 클라이언트 계약 유지 |
+| **service 간 조인 (schema stitching)**(= 서로 다른 서버에 흩어진 데이터를 게이트웨이 schema 안에서 한 그래프로 이어 붙이는 것 — 주문(commerce)과 인보이스(billing)를 한 응답으로 꿰맴) | `Order.user` / `Order.invoice` 등 `@SchemaMapping` resolver | ADR-0001, [ADR-0006](adr/0006-schema-design.md) | service 경계를 가로지르는 조인을 게이트웨이 schema 에서 표현 |
+| **Relay cursor connection 페이징**(= 다음 페이지 표식을 클라이언트가 못 읽게 Base64로 가린 '불투명' 책갈피로 이어 읽기 — 몇 쪽인지 안 봐도 받은 값을 그대로 돌려주면 다음 줄부터 이어짐) | `CursorCodec` (domain) + `search` / `securityAlerts` connection 타입 | ADR-0006 | offset 노출 대신 불투명 cursor — 페이징 구현 바뀌어도 클라이언트 계약 유지 |
 
 → 이론: `dev-lab/api-design` (REST vs GraphQL, over/under-fetching, BFF), `dev-lab/system-design` (gateway 패턴, schema stitching vs federation)
 
@@ -51,7 +51,7 @@
 | 패턴 | 이 레포 어디서 | 왜 (ADR) | 한 줄 |
 |------|---------------|---------|-------|
 | **단기 로컬 캐시** | `gateway-adapter-out` Caffeine — 안정적 데이터(사용자 프로필)만 | [ADR-0007](adr/0007-caching.md) | DataLoader 는 한 요청 내 중복만 합침 → 요청 간 반복 조회는 캐시로 |
-| **cache stampede 회피** | Caffeine `AsyncLoadingCache` (동시 로드 1회로 합침) | ADR-0007 | 만료 순간 같은 키 동시 요청이 downstream 을 몰아치는 것 방지 |
+| **cache stampede 회피**(= 캐시 만료 순간 같은 키 요청이 한꺼번에 downstream 으로 우르르 몰리는 현상 — 셔터 올라가는 순간 손님이 한꺼번에 몰리는 걸, 한 번만 로드해 나눠 주게 막음) | Caffeine `AsyncLoadingCache` (동시 로드 1회로 합침) | ADR-0007 | 만료 순간 같은 키 동시 요청이 downstream 을 몰아치는 것 방지 |
 
 → 이론: `dev-lab/api-design` (캐시 위치 / TTL trade-off), `dev-lab/system-design` (로컬 vs 공유 캐시)
 
@@ -60,7 +60,7 @@
 | 패턴 | 이 레포 어디서 | 왜 (ADR) | 한 줄 |
 |------|---------------|---------|-------|
 | **OAuth2 resource server (JWT)** | `gateway-adapter-in` Spring Security — auth-service JWK Set 검증 | [ADR-0004](adr/0004-jwt-auth-token-relay.md) | 인증 안 된 요청을 게이트웨이에서 차단 → downstream 호출 절약 |
-| **token relay** | 원본 JWT 를 downstream 호출에 그대로 전달 | ADR-0004 | 인증 주체를 auth-service 하나로 유지, 권한 판단은 각 service |
+| **token relay**(= 받은 JWT 를 새로 만들지 않고 받은 그대로 downstream 호출에 계주 바통처럼 넘김 — 인증 주체를 auth-service 하나로 유지) | 원본 JWT 를 downstream 호출에 그대로 전달 | ADR-0004 | 인증 주체를 auth-service 하나로 유지, 권한 판단은 각 service |
 
 → 이론: `dev-lab/api-design` (인증 / 토큰 전파), `dev-lab/system-design` (게이트웨이 인증 경계)
 

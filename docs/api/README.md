@@ -20,7 +20,7 @@ This is the resolved contract, which is a superset of the hand-written source sc
 (the source has no built-in directives and a different type ordering). The source file
 remains the thing you edit; this file is the generated, authoritative client-facing view.
 
-## How it is generated (zero external infrastructure)
+## How it is generated (zero external infrastructure)(= Docker·DB·메시지 브로커·API 키 하나 없이, 메모리 가짜 부품(stub)만으로 게이트웨이를 띄워 돌릴 수 있다는 뜻)
 
 The `demo` Spring profile boots the gateway with in-memory stub adapters and JWT auth
 disabled, so no downstream service, database, or broker is required:

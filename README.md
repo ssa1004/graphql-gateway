@@ -10,7 +10,7 @@
 
 > **English summary** (한국어 전문은 아래로 이어집니다 / full Korean docs follow below)
 
-A GraphQL **Backend-for-Frontend (BFF)** that fronts 9 independent portfolio backend
+A GraphQL **Backend-for-Frontend (BFF)**(= 화면 하나를 그리려 여러 서버를 따로 호출·조립하던 일을 대신 해주는 전담 중간 서버 — 주문을 한 번에 받아 여러 주방에 나눠 시키고 한 접시로 모아주는 웨이터) that fronts 9 independent portfolio backend
 services and exposes them through a single `/graphql` endpoint. Clients describe the
 shape of the data they need; the gateway calls the downstream REST services and fills
 that shape in one round trip — instead of each client orchestrating several REST calls
@@ -21,16 +21,16 @@ and stitching the responses together itself.
 - **No over-fetching** — clients select exactly the fields they use.
 - **Call coalescing** — several REST calls for one screen collapse into one GraphQL query.
 - **Server-side joins** — cross-service links (`Order.user`, `Order.invoice`, …) are
-  resolved by the gateway via DataLoader batching (N+1 → 1, see [ADR-0002](docs/adr/0002-dataloader-n-plus-1.md)).
-- **Partial-failure isolation** *(headline feature)* — if one downstream is down, only its
+  resolved by the gateway via DataLoader batching(= 조회를 즉시 보내지 않고 아주 짧은 순간 키들을 모았다가 한 방에 조회 — 택배를 건마다 보내지 않고 한 트럭에 실어 N+1번 호출을 1묶음으로) (N+1 → 1, see [ADR-0002](docs/adr/0002-dataloader-n-plus-1.md)).
+- **Partial-failure isolation**(= 한 쿼리가 여러 서버를 부르는데 그중 한 곳이 죽어도 그 칸만 비워(null) 두고 나머지는 정상 반환 — 뷔페 한 코너가 비어도 식사는 안 망침) *(headline feature)* — if one downstream is down, only its
   field becomes `null` and the rest of the query still succeeds; the error is reported in
   the GraphQL `errors` array (see [ADR-0003](docs/adr/0003-downstream-resilience.md) and the
   [sample response](#partial-failure-isolation--sample-response) below).
 
 **Tech** — Kotlin 2.0 (100% Kotlin, 0 Java sources) · Java 21 · Spring Boot 3.5 /
 Spring for GraphQL · Kotlin Coroutines + Reactor · DataLoader · Resilience4j (circuit
-breaker / retry / timeout) · Spring Security (OAuth2 resource server, JWT relay) ·
-Caffeine · Gradle 8 (Kotlin DSL, 5-module hexagonal) · Docker · Helm · GitHub Actions.
+breaker / retry / timeout) · Spring Security (OAuth2 resource server, JWT relay(= 받은 JWT를 새로 만들지 않고 받은 그대로 downstream 호출에 계주 바통처럼 넘겨, 인증 주체를 auth-service 하나로 유지)) ·
+Caffeine · Gradle 8 (Kotlin DSL, 5-module hexagonal(= 핵심 업무 로직을 한가운데 두고 DB·웹·외부 호출은 콘센트(port)와 플러그(adapter)로만 연결 — 화살표가 항상 안쪽 도메인을 향하는 5개 모듈 구조)) · Docker · Helm · GitHub Actions.
 
 **Run it in one minute** — no downstream services required; the `demo` profile serves
 in-memory stub adapters and disables JWT auth:
@@ -115,7 +115,7 @@ service 단위로 회로를 분리해, billing-platform 이 죽어도 auth-servi
 
 GraphQL 은 클라이언트가 쿼리 모양을 정하므로, 깊거나 넓은 쿼리 하나가 게이트웨이와 9개
 downstream 을 한꺼번에 끌어내릴 수 있습니다. graphql-java instrumentation 으로 depth /
-complexity 한계를 두어, 한계를 넘는 쿼리는 실행 전에 거부합니다 (downstream 호출 0).
+complexity 한계(= 쿼리의 중첩 깊이와 필드 비용에 '깊이 15·비용 200' 같은 상한을 두는 것 — 무한 리필 뷔페에 1인 1접시 제한을 거는 셈)를 두어, 한계를 넘는 쿼리는 실행 전에 거부합니다 (downstream 호출 0).
 ([ADR-0008](docs/adr/0008-query-complexity-depth-limit.md))
 
 ### 6. downstream 계약 변경 흡수
