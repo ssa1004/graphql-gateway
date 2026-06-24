@@ -64,3 +64,9 @@ downstream 장애는 의미상 503(Service Unavailable) 에 가깝지만, Spring
 - 게이트웨이 내부 구조가 오류 응답으로 새지 않는다.
 - 단점: 모든 resolver 예외가 이 한 resolver 를 거치므로, 새 예외 타입이 생기면 매핑 규칙을
   갱신해야 한다. 누락되면 `INTERNAL_ERROR` 로 떨어진다(안전한 기본값이지만 정보가 적다).
+
+## 용어 풀이 (쉽게)
+
+- **GraphQL의 data / errors 동시 응답** — GraphQL 응답은 성공한 부분(data)과 실패한 부분의 사정(errors)을 한 봉투에 같이 담을 수 있다. 그래서 한 칸이 실패해도 전체가 죽지 않고 "여긴 됐고 저긴 이래서 안 됐다"를 함께 알려 준다.
+- **extensions(확장 필드)** — 표준 오류 메시지 옆에 우리가 원하는 추가 정보를 붙여 넣는 자유 칸. 여기에 "어느 downstream이 문제였는지(service)"나 "일시 장애인지 입력 오류인지(classification)" 같은 꼬리표를 실어 클라이언트가 대응을 정하게 한다.
+- **503 / Service Unavailable** — "서버가 지금 잠깐 일을 못 받는 상태"라는 뜻의 응답 신호. 잠시 후 다시 오면 될 수 있다는 의미라, downstream 일시 장애에 어울린다.
