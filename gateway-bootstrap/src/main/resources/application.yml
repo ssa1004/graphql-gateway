@@ -28,10 +28,11 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: ${AUTH_ISSUER_URI:http://localhost:8081/realms/portfolio}
-          # issuer 의 well-known 으로 jwk-set-uri 를 못 가져오는 환경(예: issuer 미가용)
-          # 에서는 jwk-set-uri 를 직접 지정한다.
-          jwk-set-uri: ${AUTH_JWK_SET_URI:http://localhost:8081/realms/portfolio/protocol/openid-connect/certs}
+          # 실제 IdP 는 auth-service(Spring Authorization Server, :8080). Keycloak(:8081/realms) 아님.
+          issuer-uri: ${AUTH_ISSUER_URI:http://localhost:8080}
+          # issuer 의 well-known(/.well-known/openid-configuration)으로 jwk-set-uri 를 못 가져오는
+          # 환경에서는 jwk-set-uri 를 직접 지정한다. auth-service 의 JWK Set 은 /oauth2/jwks.
+          jwk-set-uri: ${AUTH_JWK_SET_URI:http://localhost:8080/oauth2/jwks}
 
 server:
   port: 8080
@@ -46,7 +47,7 @@ gateway:
     stub: ${DOWNSTREAM_STUB:false}
     timeout-ms: ${DOWNSTREAM_TIMEOUT_MS:2000}
     auth:
-      base-url: ${AUTH_BASE_URL:http://localhost:8081}
+      base-url: ${AUTH_BASE_URL:http://localhost:8080}
     commerce:
       base-url: ${COMMERCE_BASE_URL:http://localhost:8082}
     marketplace:

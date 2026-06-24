@@ -188,8 +188,8 @@ downstream:
 # ----------------------------------------------------------------------------
 auth:
   # OAuth2 resource server issuer. permitAll 이 true 면 무시된다.
-  issuerUri: http://auth-service.portfolio.svc.cluster.local:8080/realms/portfolio
-  jwkSetUri: http://auth-service.portfolio.svc.cluster.local:8080/realms/portfolio/protocol/openid-connect/certs
+  issuerUri: http://auth-service.portfolio.svc.cluster.local:8080
+  jwkSetUri: http://auth-service.portfolio.svc.cluster.local:8080/oauth2/jwks
   # true 면 인증을 끈다 — 데모 전용. 운영에서는 false.
   permitAll: false
 

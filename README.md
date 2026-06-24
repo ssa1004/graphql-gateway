@@ -72,7 +72,7 @@ the [GraphQL schema](#graphql-schema), and [docs/adr/](docs/adr/) for the design
 - **Language**: Kotlin 2.0 (100% Kotlin — Java 소스 0), Java 21 toolchain
 - **Framework**: Spring Boot 3.5, Spring for GraphQL
 - **비동기**: Kotlin Coroutines (suspend resolver), Reactor
-- **N+1 방지**: DataLoader (`@BatchMapping` / `BatchLoaderRegistry`)
+- **N+1 방지**: DataLoader (`@SchemaMapping` resolver 가 DataLoader 주입받고, `BatchLoaderRegistry.registerMappedBatchLoader` 로 batch 등록)
 - **downstream 호출**: WebClient (non-blocking)
 - **장애 격리**: Resilience4j (서킷 브레이커, 재시도, 타임아웃)
 - **인증**: Spring Security (OAuth2 Resource Server, JWT)
@@ -246,7 +246,9 @@ in-memory stub 어댑터로 downstream 응답을 대신하고 JWT 인증을 끕�
 > make demo                          # 9 service 조회 + 조인 GraphQL 쿼리 시연
 > open http://localhost:8080/graphiql  # GraphQL playground
 > ```
-> 호스트에서 직접 띄우려면 `make run` (= `./gradlew :gateway-bootstrap:bootRun`).
+> 호스트에서 직접 띄우려면 `make run` (= `./gradlew :gateway-bootstrap:bootRun --args='--spring.profiles.active=demo'`).
+> demo 프로필이 stub 어댑터(`downstream.stub=true`)와 인증 off(`security.permit-all=true`)를 켜므로 외부 의존 없이 뜹니다 —
+> 프로필 없이 `./gradlew :gateway-bootstrap:bootRun` 만 실행하면 9개 downstream 실호출 + JWT 검증이 켜진 운영 설정이라 그대로는 뜨지 않습니다.
 
 ### Gradle 로 실행
 
