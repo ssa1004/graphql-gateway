@@ -6,6 +6,7 @@ import com.example.gateway.application.port.DownstreamException
 import com.github.tomakehurst.wiremock.WireMockServer
 import com.github.tomakehurst.wiremock.client.WireMock.aResponse
 import com.github.tomakehurst.wiremock.client.WireMock.get
+import com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor
 import com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration.options
 import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig
@@ -103,6 +104,24 @@ class WebUserAdapterTest {
         assertThat(thrown)
             .isInstanceOf(DownstreamException::class.java)
         assertThat((thrown as DownstreamException).serviceName).isEqualTo("auth")
+    }
+
+    @Test
+    fun `같은 id 재조회는 캐시로 downstream 을 한 번만 친다 (ADR-0007)`(): Unit = runBlocking {
+        auth.stubFor(
+            get(urlPathEqualTo("/api/v1/users/u-1")).willReturn(
+                aResponse()
+                    .withHeader("Content-Type", "application/json")
+                    .withBody("""{"id":"u-1","email":"u1@example.com","displayName":"a","roles":[],"status":"ACTIVE","createdAt":""}"""),
+            ),
+        )
+
+        val first = adapter.findById("u-1")
+        val second = adapter.findById("u-1")
+
+        assertThat(first).isNotNull
+        assertThat(second).isEqualTo(first)
+        auth.verify(1, getRequestedFor(urlPathEqualTo("/api/v1/users/u-1")))
     }
 
     @Test

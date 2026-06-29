@@ -19,7 +19,6 @@ dependencies {
     implementation("io.github.resilience4j:resilience4j-kotlin:2.3.0")
 
     // Caffeine — resolver 캐시 (downstream 응답 단기 캐싱 + stampede 회피).
-    implementation("org.springframework.boot:spring-boot-starter-cache")
     implementation("com.github.ben-manes.caffeine:caffeine")
 
     implementation("org.jetbrains.kotlin:kotlin-reflect")

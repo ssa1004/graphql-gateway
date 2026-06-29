@@ -22,14 +22,26 @@ import com.example.gateway.domain.SearchHit
 import com.example.gateway.domain.SecurityAlert
 import com.example.gateway.domain.Trade
 import com.example.gateway.domain.User
+import com.github.benmanes.caffeine.cache.AsyncCache
+import com.github.benmanes.caffeine.cache.Caffeine
+import jakarta.annotation.PreDestroy
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.future.await
+import kotlinx.coroutines.future.future
 import org.springframework.beans.factory.annotation.Qualifier
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.stereotype.Component
 import org.springframework.web.reactive.function.client.WebClient
 import org.springframework.web.util.UriComponentsBuilder
+import java.time.Duration
+import java.util.Optional
 
 /**
  * 9개 downstream service 의 REST 를 호출하는 WebClient 어댑터 묶음.
@@ -51,13 +63,29 @@ import org.springframework.web.util.UriComponentsBuilder
 class WebUserAdapter(
     @Qualifier("authWebClient") private val webClient: WebClient,
     private val client: ResilientDownstreamClient,
+    @Value("\${gateway.cache.user.ttl-seconds:60}") ttlSeconds: Long = 60,
+    @Value("\${gateway.cache.user.max-size:10000}") maxSize: Long = 10_000,
 ) : UserPort {
 
+    // ADR-0007: 사용자 프로필처럼 분 단위로 거의 안 바뀌는 데이터만 단기 캐시한다(거래/job/알림은 캐시 안 함).
+    // AsyncCache 는 같은 키의 동시 미스를 한 번의 downstream 로드로 합쳐 stampede(떼몰림)를 막는다.
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val cache: AsyncCache<String, Optional<User>> = Caffeine.newBuilder()
+        .expireAfterWrite(Duration.ofSeconds(ttlSeconds))
+        .maximumSize(maxSize)
+        .buildAsync()
+
     override suspend fun findById(id: String): User? =
-        client.get("auth", webClient, "/api/v1/users/$id", UserDto::class.java)?.toDomain()
+        cache.get(id) { key, _ -> scope.future { Optional.ofNullable(fetch(key)) } }.await().orElse(null)
 
     override suspend fun findByIds(ids: Set<String>): Map<String, User> =
         parallelByKeys(ids) { findById(it) }
+
+    private suspend fun fetch(id: String): User? =
+        client.get("auth", webClient, "/api/v1/users/$id", UserDto::class.java)?.toDomain()
+
+    @PreDestroy
+    private fun close() = scope.cancel()
 }
 
 @Component
