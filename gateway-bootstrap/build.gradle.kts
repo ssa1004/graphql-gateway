@@ -25,7 +25,7 @@ dependencies {
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
 
     // Resilience4j — application.yml 의 resilience4j.* 바인딩 + actuator 노출.
-    implementation("io.github.resilience4j:resilience4j-spring-boot3:2.3.0")
+    implementation("io.github.resilience4j:resilience4j-spring-boot3:2.4.0")
 
     // 관측 — actuator + Prometheus + OpenTelemetry trace.
     implementation("org.springframework.boot:spring-boot-starter-actuator")
@@ -38,9 +38,9 @@ dependencies {
     testImplementation("org.springframework.security:spring-security-test")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test")
-    testImplementation("org.mockito.kotlin:mockito-kotlin:5.4.0")
+    testImplementation("org.mockito.kotlin:mockito-kotlin:6.3.0")
     // WireMock — @SpringBootTest 에서 downstream 9 service 를 mock.
-    testImplementation("org.wiremock:wiremock-standalone:3.10.0")
+    testImplementation("org.wiremock:wiremock-standalone:3.13.2")
 }
 
 kotlin {
