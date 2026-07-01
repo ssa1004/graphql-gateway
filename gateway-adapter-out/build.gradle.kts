@@ -28,7 +28,6 @@ dependencies {
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
-    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test")
     // WireMock — downstream 9 service 가 안 떠 있어도 어댑터를 단위 검증.
     testImplementation("org.wiremock:wiremock-standalone:3.10.0")
 }

@@ -80,7 +80,6 @@ data class NotificationDto(
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class FeedDto(
     val id: String? = null,
-    val skuId: String? = null,
     val topic: String? = null,
     val lastEventAt: String? = null,
     val subscriberCount: Int? = null,
