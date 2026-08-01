@@ -1,6 +1,6 @@
 # Multi-stage build — JDK 21 으로 build, JRE 21 Alpine 으로 run.
 
-FROM eclipse-temurin:21-jdk-alpine AS builder
+FROM eclipse-temurin:25-jdk-alpine AS builder
 WORKDIR /build
 COPY gradle gradle
 COPY gradlew settings.gradle.kts build.gradle.kts gradle.properties ./
@@ -11,7 +11,7 @@ COPY gateway-adapter-out gateway-adapter-out
 COPY gateway-bootstrap gateway-bootstrap
 RUN ./gradlew :gateway-bootstrap:bootJar -x test --no-daemon
 
-FROM eclipse-temurin:21-jre-alpine
+FROM eclipse-temurin:25-jre-alpine
 WORKDIR /app
 
 # OCI image labels — 레지스트리/스캐너/SBOM 도구가 출처와 라이선스를 읽을 수 있게.
